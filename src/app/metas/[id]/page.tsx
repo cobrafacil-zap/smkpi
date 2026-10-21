@@ -224,7 +224,7 @@ export default function GoalDetailPage() {
           </div>
         </div>
 
-        {goal.status === "ativa" ? (
+        {goal.status === "ativa" && breakdown.hasMetric ? (
           <Button
             className="mt-4 w-full sm:w-auto"
             leadingIcon={<TrendingUp className="h-4 w-4" />}
@@ -232,6 +232,11 @@ export default function GoalDetailPage() {
           >
             Registrar atualização de progresso
           </Button>
+        ) : goal.status === "ativa" ? (
+          <p className="mt-4 rounded-xl border border-dashed border-line px-4 py-3 text-[12.5px] text-ink-faint">
+            Esta meta é acompanhada por etapas — marque as concluídas abaixo para mover o
+            percentual.
+          </p>
         ) : (
           <div className="mt-4 flex flex-wrap gap-2">
             <Button

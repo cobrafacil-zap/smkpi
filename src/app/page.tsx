@@ -151,6 +151,9 @@ export default function DashboardPage() {
   const late = views.filter((v) => v.deadline.tone === "late");
 
   const name = state.settings.displayName?.trim();
+  const metricGoal = views.find(
+    (v) => v.goal.status === "ativa" && v.breakdown.hasMetric,
+  );
 
   const runAi = async () => {
     setAiLoading(true);
@@ -211,11 +214,11 @@ export default function DashboardPage() {
               <Button leadingIcon={<Target className="h-4 w-4" />} onClick={() => setFormOpen(true)}>
                 Nova meta
               </Button>
-              {views.find((v) => v.goal.status === "ativa") ? (
+              {metricGoal ? (
                 <Button
                   variant="outline"
                   leadingIcon={<TrendingUp className="h-4 w-4" />}
-                  onClick={() => setProgressTarget(views.find((v) => v.goal.status === "ativa")!)}
+                  onClick={() => setProgressTarget(metricGoal)}
                 >
                   Atualizar progresso
                 </Button>

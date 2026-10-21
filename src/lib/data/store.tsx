@@ -173,6 +173,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [state, ready, mode, user]);
 
+  /* ── Sincronização entre abas (modo local) ─────────── */
+  useEffect(() => {
+    if (mode !== "local" || !ready) return;
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== "smkpi:state:v1" || !event.newValue) return;
+      try {
+        const incoming = JSON.parse(event.newValue) as AppState;
+        if (!incoming?.goals) return;
+        prevRef.current = incoming;
+        setState(incoming);
+      } catch {
+        /* ignora payload inválido */
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [mode, ready]);
+
   /* ── Conquistas automáticas ────────────────────────── */
   useEffect(() => {
     if (!ready) return;

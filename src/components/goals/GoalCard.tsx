@@ -194,7 +194,7 @@ export function GoalCard({
           )}
         </div>
 
-        {onOpenProgress && goal.status === "ativa" ? (
+        {onOpenProgress && goal.status === "ativa" && breakdown.hasMetric ? (
           <Button
             size="sm"
             variant="secondary"
