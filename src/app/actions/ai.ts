@@ -10,7 +10,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
  * feita no cliente — a chave nunca é exposta ao browser.
  */
 
-const MODEL = "gemini-1.5-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 
 export interface AiResult<T> {
   available: boolean;
