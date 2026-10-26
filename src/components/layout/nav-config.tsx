@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  CalendarDays,
   LayoutDashboard,
   Repeat2,
   Settings,
@@ -45,13 +44,6 @@ export const navItems: NavItem[] = [
     shortLabel: "Hábitos",
     icon: Repeat2,
     description: "Rotinas que sustentam suas metas",
-  },
-  {
-    href: "/calendario",
-    label: "Calendário",
-    shortLabel: "Agenda",
-    icon: CalendarDays,
-    description: "Prazos, etapas e compromissos",
   },
   {
     href: "/evolucao",

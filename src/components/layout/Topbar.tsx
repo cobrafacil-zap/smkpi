@@ -26,7 +26,6 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/": { title: "Dashboard", subtitle: "O que você quer conquistar e o quanto já avançou" },
   "/metas": { title: "Minhas Metas", subtitle: "Todos os seus objetivos em um só lugar" },
   "/habitos": { title: "Hábitos", subtitle: "As rotinas que movem suas metas" },
-  "/calendario": { title: "Calendário", subtitle: "Prazos, etapas e compromissos" },
   "/evolucao": { title: "Minha Evolução", subtitle: "Tudo o que você já conquistou" },
   "/ano": { title: "Meu Ano", subtitle: "A visão panorâmica do seu ano" },
   "/sonhos": { title: "Meus Sonhos", subtitle: "Objetivos maiores, sem prazo definido" },

@@ -1,21 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Sora } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { DataProvider } from "@/lib/data/store";
 import { ToastProvider } from "@/components/ui/Toast";
 
-const sora = Sora({
-  subsets: ["latin"],
+/**
+ * Fontes auto-hospedadas (variáveis) — o build não depende de rede e o
+ * carregamento é instantâneo.
+ */
+const sora = localFont({
+  src: "../fonts/Sora-latin.woff2",
   variable: "--font-display",
-  weight: ["500", "600", "700", "800"],
+  weight: "100 800",
   display: "swap",
 });
 
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: "../fonts/Inter-latin.woff2",
   variable: "--font-body",
-  weight: ["400", "500", "600", "700"],
+  weight: "100 900",
   display: "swap",
 });
 

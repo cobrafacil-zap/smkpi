@@ -15,8 +15,7 @@ você já avançou, o que falta e o que precisa de atenção agora.
 | **Metas** | CRUD completo, filtros (categoria, status, prioridade, período), busca, ordenação, Modos de acompanhamento (valor, etapas ou misto), metas anuais/mensais/semanais/sem prazo e vínculo entre metas |
 | **Progresso** | Cálculo automático (aumentar/reduzir), histórico de atualizações com gráfico de linha, “falta X”, ritmo (adiantada / em dia / atrasada) e barra de prazo decorrido |
 | **Etapas** | Checklist por meta; concluída uma etapa, o percentual da meta sobe |
-| **Hábitos** | Calendário mensal de marcação, sequência (streak), adesão semanal e vínculo com metas |
-| **Calendário** | Prazos, inícios, etapas concluídas, hábitos e conquistas em uma grade mensal + painel do dia |
+| **Hábitos** | Marcação rápida do dia, dias da semana clicáveis, sequência (streak), meta semanal e vínculo com metas |
 | **Minha Evolução** | Resumo motivacional do ano, metas concluídas por mês, percentual por categoria, comparativo pessoal × profissional e timeline do que já foi conquistado |
 | **Meu Ano** | Visão panorâmica do ano com progresso por âmbito e distribuição mensal |
 | **Meus Sonhos** | Sonhos com foto, valor estimado e prazo desejado; transformação de sonho em meta |
@@ -72,7 +71,6 @@ src/
     page.tsx               # dashboard
     metas/                 # lista + detalhe da meta
     habitos/               # hábitos + calendário
-    calendario/            # agenda
     evolucao/              # minha evolução
     ano/                   # meu ano
     sonhos/                # meus sonhos
