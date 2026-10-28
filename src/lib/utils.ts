@@ -4,13 +4,19 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }
 
-/** Id curto e estável (sem dependência de crypto em SSR). */
-export function uid(prefix = "id"): string {
-  const rnd =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID().replace(/-/g, "").slice(0, 12)
-      : Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-  return `${prefix}_${rnd}`;
+/**
+ * UUID v4 — compatível com as colunas `uuid` do Postgres/Supabase.
+ * (IDs legíveis como "g_abc123" não são aceitos por colunas uuid.)
+ */
+export function uid(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 export function clamp(value: number, min = 0, max = 100): number {

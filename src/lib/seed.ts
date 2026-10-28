@@ -9,7 +9,7 @@ import type {
   ProgressEntry,
   Step,
 } from "./types";
-import { toISODate } from "./utils";
+import { toISODate, uid } from "./utils";
 
 const USER = "local";
 
@@ -30,6 +30,43 @@ function yearStart(base: Date): string {
 function monthEnd(base: Date, offsetMonths = 0): string {
   const date = new Date(base.getFullYear(), base.getMonth() + offsetMonths + 1, 0);
   return toISODate(date);
+}
+
+/**
+ * Converte os ids legíveis do seed ("g_faturar_100k") em UUIDs válidos —
+ * exigência das colunas `uuid` do Postgres. O mapa é único por execução,
+ * então todas as referências (metas, etapas, hábitos…) continuam batendo.
+ */
+function withUuidIds(state: AppState): AppState {
+  const map = new Map<string, string>();
+  const to = (old: string | null): string | null => {
+    if (!old) return old;
+    if (!map.has(old)) map.set(old, uid());
+    return map.get(old)!;
+  };
+
+  const categories = state.categories.map((c) => ({ ...c, id: to(c.id)! }));
+  const goals = state.goals.map((g) => ({
+    ...g,
+    id: to(g.id)!,
+    categoryId: to(g.categoryId) ?? "",
+    parentGoalId: to(g.parentGoalId),
+  }));
+  const steps = state.steps.map((s) => ({ ...s, id: to(s.id)!, goalId: to(s.goalId)! }));
+  const progress = state.progress.map((p) => ({ ...p, id: to(p.id)!, goalId: to(p.goalId)! }));
+  const habits = state.habits.map((h) => ({
+    ...h,
+    id: to(h.id)!,
+    goalId: to(h.goalId),
+  }));
+  const habitLogs = state.habitLogs.map((l) => ({
+    ...l,
+    id: to(l.id)!,
+    habitId: to(l.habitId)!,
+  }));
+  const dreams = state.dreams.map((d) => ({ ...d, id: to(d.id)!, goalId: to(d.goalId) }));
+
+  return { ...state, categories, goals, steps, progress, habits, habitLogs, dreams };
 }
 
 /**
@@ -754,7 +791,7 @@ export function buildSeedState(now: Date = new Date()): AppState {
     },
   ];
 
-  return {
+  return withUuidIds({
     categories,
     goals,
     steps,
@@ -774,5 +811,5 @@ export function buildSeedState(now: Date = new Date()): AppState {
       notifyNearCompletion: 85,
       updatedAt: nowIso,
     },
-  };
+  });
 }

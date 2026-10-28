@@ -54,7 +54,7 @@ const COLUMNS: Record<string, string[]> = {
   steps: ["id", "user_id", "goal_id", "title", "done", "done_at", "position", "created_at"],
   progress: ["id", "user_id", "goal_id", "logged_at", "value", "note", "created_at"],
   habits: ["id", "user_id", "goal_id", "title", "icon", "color", "target_per_week", "created_at"],
-  habit_logs: ["id", "user_id", "habit_id", "log_date", "created_at"],
+  habitLogs: ["id", "user_id", "habit_id", "log_date", "created_at"],
   dreams: [
     "id", "user_id", "title", "description", "image_url", "estimated_value",
     "desired_date", "status", "goal_id", "created_at",
@@ -68,7 +68,7 @@ const TABLE_MAP: Record<string, string> = {
   steps: "goal_steps",
   progress: "goal_progress",
   habits: "habits",
-  habit_logs: "habit_logs",
+  habitLogs: "habit_logs",
   dreams: "dreams",
   achievements: "goal_achievements",
 };

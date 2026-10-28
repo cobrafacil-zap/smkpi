@@ -92,6 +92,15 @@ const StoreContext = createContext<StoreContextValue | null>(null);
 
 const nowIso = () => new Date().toISOString();
 
+/** Estado de demonstração já apontando para o usuário logado. */
+function seededFor(userId: string): AppState {
+  const seeded = buildSeedState();
+  return {
+    ...seeded,
+    settings: { ...seeded.settings, userId },
+  };
+}
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(EMPTY_STATE);
   const [ready, setReady] = useState(false);
@@ -116,13 +125,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
           const cloud = await cloudBackend.load(session.user.id);
           const isEmpty =
             cloud.goals.length === 0 && cloud.categories.length === 0;
-          const initial = isEmpty ? buildSeedState() : cloud;
-          if (isEmpty) {
-            const seeded = { ...initial, settings: { ...initial.settings, userId: session.user.id } };
-            await cloudBackend.save(session.user.id, seeded, EMPTY_STATE);
-          }
+          const initial = isEmpty ? seededFor(session.user.id) : cloud;
           if (cancelled) return;
-          prevRef.current = initial;
+          // vazio = primeira entrada: prev fica vazio para o efeito subir tudo
+          prevRef.current = isEmpty ? EMPTY_STATE : cloud;
           setState(initial);
           setMode("cloud");
           setUser({ id: session.user.id, email: session.user.email ?? null });
@@ -205,7 +211,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     );
     if (!missing.length) return;
     const records: Achievement[] = missing.map((a) => ({
-      id: uid("ach"),
+      id: uid(),
       userId: state.settings.userId,
       key: a.def.key,
       tier: a.def.tier,
@@ -231,7 +237,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const addGoal: StoreContextValue["addGoal"] = useCallback(
     (input) => {
-      const id = input.id ?? uid("g");
+      const id = input.id ?? uid();
       const goal: Goal = {
         id,
         userId: state.settings.userId,
@@ -296,7 +302,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       patch((prev) => {
         const position = prev.steps.filter((s) => s.goalId === goalId).length;
         const step: Step = {
-          id: uid("st"),
+          id: uid(),
           userId: prev.settings.userId,
           goalId,
           title: clean,
@@ -346,7 +352,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     (goalId, value, note = "", date) => {
       patch((prev) => {
         const entry: ProgressEntry = {
-          id: uid("pg"),
+          id: uid(),
           userId: prev.settings.userId,
           goalId,
           loggedAt: date ?? new Date().toISOString().slice(0, 10),
@@ -385,7 +391,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const addCategory: StoreContextValue["addCategory"] = useCallback(
     (input) => {
-      const id = input.id ?? uid("cat");
+      const id = input.id ?? uid();
       const category: Category = {
         id,
         userId: state.settings.userId,
@@ -428,7 +434,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const addHabit: StoreContextValue["addHabit"] = useCallback(
     (input) => {
-      const id = input.id ?? uid("hb");
+      const id = input.id ?? uid();
       const habit: Habit = {
         id,
         userId: state.settings.userId,
@@ -479,7 +485,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           };
         }
         const log: HabitLog = {
-          id: uid("hl"),
+          id: uid(),
           userId: prev.settings.userId,
           habitId,
           logDate: date,
@@ -493,7 +499,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const addDream: StoreContextValue["addDream"] = useCallback(
     (input) => {
-      const id = input.id ?? uid("dr");
+      const id = input.id ?? uid();
       const dream: Dream = {
         id,
         userId: state.settings.userId,
@@ -640,15 +646,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         try {
           const cloud = await cloudBackend.load(session.user.id);
           const isEmpty = cloud.goals.length === 0 && cloud.categories.length === 0;
-          const initial = isEmpty ? buildSeedState() : cloud;
-          if (isEmpty) {
-            await cloudBackend.save(
-              session.user.id,
-              { ...initial, settings: { ...initial.settings, userId: session.user.id } },
-              EMPTY_STATE,
-            );
-          }
-          prevRef.current = initial;
+          const initial = isEmpty ? seededFor(session.user.id) : cloud;
+          prevRef.current = isEmpty ? EMPTY_STATE : cloud;
           setState(initial);
         } catch {
           /* mantém o estado local */
