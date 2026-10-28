@@ -51,12 +51,14 @@ export function Sidebar() {
               </>
             )}
           </div>
-          <Link
-            href="/configuracoes"
-            className="mt-2 block text-[11px] font-semibold text-iris hover:underline"
-          >
-            Conectar uma conta →
-          </Link>
+          {mode === "local" ? (
+            <Link
+              href="/entrar"
+              className="mt-2 block text-[11px] font-semibold text-iris hover:underline"
+            >
+              Entrar ou criar conta →
+            </Link>
+          ) : null}
         </div>
       </aside>
 

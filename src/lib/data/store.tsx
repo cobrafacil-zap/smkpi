@@ -31,7 +31,7 @@ import {
   markSeeded,
   saveLocalState,
 } from "./storage";
-import { cloudBackend, getSupabase } from "./backend";
+import { SUPABASE_URL, cloudBackend, getSupabase } from "./backend";
 import { computeProgress } from "@/lib/progress";
 import { evaluateAchievements } from "@/lib/achievements";
 import { uid } from "@/lib/utils";
@@ -83,14 +83,38 @@ export interface StoreContextValue {
   importJson: (raw: string) => boolean;
   /* autenticação */
   signInWithGoogle: () => Promise<{ ok: boolean; message: string }>;
-  signInWithPassword: (email: string, password: string) => Promise<{ ok: boolean; message: string }>;
-  signUp: (email: string, password: string) => Promise<{ ok: boolean; message: string }>;
+  signInWithPassword: (
+    email: string,
+    password: string,
+    remember?: boolean,
+  ) => Promise<{ ok: boolean; message: string }>;
+  signUp: (
+    email: string,
+    password: string,
+    name?: string,
+  ) => Promise<{ ok: boolean; message: string }>;
+  resetPassword: (email: string) => Promise<{ ok: boolean; message: string }>;
+  updatePassword: (password: string) => Promise<{ ok: boolean; message: string }>;
   signOut: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 const nowIso = () => new Date().toISOString();
+
+/**
+ * Chave usada pelo supabase-js no localStorage.
+ * Usada para descartar a sessão quando o usuário não marca "Manter conectado".
+ */
+function clearPersistedSession() {
+  try {
+    const ref = new URL(SUPABASE_URL).hostname.split(".")[0];
+    window.localStorage.removeItem(`sb-${ref}-auth-token`);
+    window.localStorage.removeItem(`sb-${ref}-auth-token-code-verifier`);
+  } catch {
+    /* ignore */
+  }
+}
 
 /** Estado de demonstração já apontando para o usuário logado. */
 function seededFor(userId: string): AppState {
@@ -598,31 +622,90 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 
   const signInWithPassword = useCallback<StoreContextValue["signInWithPassword"]>(
-    async (email, password) => {
+    async (email, password, remember = true) => {
       const supabase = getSupabase();
       if (!supabase) return { ok: false, message: "Supabase não configurado." };
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { ok: false, message: error.message };
+      if (error) {
+        return {
+          ok: false,
+          message:
+            error.message === "Invalid login credentials"
+              ? "E-mail ou senha incorretos."
+              : error.message,
+        };
+      }
+      // "Manter conectado" desmarcado = sessão só nesta aba (fecha o navegador e sai)
+      if (!remember) clearPersistedSession();
       return { ok: true, message: "Login realizado." };
     },
     [],
   );
 
-  const signUp = useCallback<StoreContextValue["signUp"]>(async (email, password) => {
-    const supabase = getSupabase();
-    if (!supabase) return { ok: false, message: "Supabase não configurado." };
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.origin },
-    });
-    if (error) return { ok: false, message: error.message };
-    if (data.session) return { ok: true, message: "Conta criada. Bem-vindo!" };
-    return {
-      ok: true,
-      message: "Conta criada. Confirme o e-mail recebido para ativar o acesso.",
-    };
-  }, []);
+  const signUp = useCallback<StoreContextValue["signUp"]>(
+    async (email, password, name) => {
+      const supabase = getSupabase();
+      if (!supabase) return { ok: false, message: "Supabase não configurado." };
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: name ? { name } : undefined,
+        },
+      });
+      if (error) {
+        return {
+          ok: false,
+          message:
+            error.message === "User already registered"
+              ? "Já existe uma conta com este e-mail."
+              : error.message,
+        };
+      }
+      if (data.session) return { ok: true, message: "Conta criada! Você já está conectado." };
+      return {
+        ok: true,
+        message: "Conta criada. Confirme o e-mail recebido para ativar o acesso.",
+      };
+    },
+    [],
+  );
+
+  const resetPassword = useCallback<StoreContextValue["resetPassword"]>(
+    async (email) => {
+      const supabase = getSupabase();
+      if (!supabase) return { ok: false, message: "Supabase não configurado." };
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/redefinir-senha`,
+      });
+      if (error) return { ok: false, message: error.message };
+      return {
+        ok: true,
+        message: "Pronto! Se existir uma conta com este e-mail, o link de recuperação foi enviado.",
+      };
+    },
+    [],
+  );
+
+  const updatePassword = useCallback<StoreContextValue["updatePassword"]>(
+    async (password) => {
+      const supabase = getSupabase();
+      if (!supabase) return { ok: false, message: "Supabase não configurado." };
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        return {
+          ok: false,
+          message:
+            error.message === "New password should be different from the old password."
+              ? "A nova senha deve ser diferente da atual."
+              : error.message,
+        };
+      }
+      return { ok: true, message: "Senha alterada com sucesso!" };
+    },
+    [],
+  );
 
   const signOut = useCallback(async () => {
     const supabase = getSupabase();
@@ -691,6 +774,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       signInWithPassword,
       signUp,
+      resetPassword,
+      updatePassword,
       signOut,
     }),
     [
@@ -726,6 +811,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       signInWithPassword,
       signUp,
+      resetPassword,
+      updatePassword,
       signOut,
     ],
   );

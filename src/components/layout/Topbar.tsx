@@ -235,11 +235,11 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
                 </p>
               </div>
               <Link
-                href="/configuracoes"
+                href="/entrar"
                 onClick={() => setOpenUser(false)}
                 className="flex items-center gap-2 px-4 py-2.5 text-[13px] text-ink-soft transition-colors hover:bg-ink/5"
               >
-                <LogIn className="h-3.5 w-3.5" /> Conectar conta
+                <LogIn className="h-3.5 w-3.5" /> Entrar / criar conta
               </Link>
               {user ? (
                 <button
