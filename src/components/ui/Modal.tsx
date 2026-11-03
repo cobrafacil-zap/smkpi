@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,10 @@ export function Modal({
   footer?: ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -35,7 +40,7 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const sizes = {
     sm: "max-w-md",
@@ -44,8 +49,14 @@ export function Modal({
     xl: "max-w-5xl",
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6">
+  /**
+   * Renderizado direto no <body> via portal.
+   * Sem isso, um modal dentro do topbar/sidebar (que usam `backdrop-blur`)
+   * fica preso ao retângulo deles — o `backdrop-filter` vira contexto de
+   * posicionamento para `position: fixed`.
+   */
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto overscroll-contain p-0 sm:items-center sm:p-6">
       <div
         className="fixed inset-0 bg-ink/40 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
@@ -83,6 +94,7 @@ export function Modal({
           </div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
