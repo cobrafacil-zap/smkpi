@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Segmented } from "@/components/ui/Field";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GoalCard } from "@/components/goals/GoalCard";
+import { QuickGoalModal } from "@/components/goals/QuickGoalModal";
 import { GoalFormModal } from "@/components/goals/GoalFormModal";
 import { ProgressUpdateModal } from "@/components/goals/ProgressUpdateModal";
 import { useStore } from "@/lib/data/store";
@@ -28,6 +29,7 @@ export default function MetasPage() {
   const [sort, setSort] = useState<SortKey>("prazo");
   const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [formOpen, setFormOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [progressTarget, setProgressTarget] = useState<GoalView | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -234,7 +236,15 @@ export default function MetasPage() {
         </div>
       )}
 
-      <GoalFormModal open={formOpen} onClose={() => setFormOpen(false)} />
+      <QuickGoalModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onAdvanced={() => {
+          setFormOpen(false);
+          setAdvancedOpen(true);
+        }}
+      />
+      <GoalFormModal open={advancedOpen} onClose={() => setAdvancedOpen(false)} />
       <ProgressUpdateModal
         view={progressTarget}
         open={Boolean(progressTarget)}

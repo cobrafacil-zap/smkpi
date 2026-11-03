@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CalendarClock, MoreVertical, Pencil, Trash2, CheckCircle2, Link2 } from "lucide-react";
+import { CalendarClock, Check, MoreVertical, Pencil, Trash2, CheckCircle2, Link2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { ProgressBar } from "@/components/ui/Progress";
@@ -24,7 +24,7 @@ export function GoalCard({
   onOpenProgress?: (view: GoalView) => void;
   compact?: boolean;
 }) {
-  const { state, deleteGoal } = useStore();
+  const { state, deleteGoal, toggleStep } = useStore();
   const { toast } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -162,6 +162,47 @@ export function GoalCard({
             </div>
             <ProgressBar value={breakdown.total} color={category?.color} />
           </div>
+        ) : null}
+
+        {view.steps.length > 0 ? (
+          <ul className="mt-3 space-y-0.5">
+            {view.steps
+              .sort((a, b) => a.position - b.position)
+              .slice(0, 5)
+              .map((step) => (
+                <li key={step.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleStep(step.id)}
+                    className="group/step flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-ink/[0.03]"
+                  >
+                    <span
+                      className={cn(
+                        "grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border transition-all",
+                        step.done
+                          ? "border-jade bg-jade text-white"
+                          : "border-line-strong text-transparent hover:border-iris",
+                      )}
+                    >
+                      <Check className="h-2.5 w-2.5" strokeWidth={3.5} />
+                    </span>
+                    <span
+                      className={cn(
+                        "truncate text-[12.5px] leading-snug",
+                        step.done ? "text-ink-faint line-through" : "text-ink-soft",
+                      )}
+                    >
+                      {step.title}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            {view.steps.length > 5 ? (
+              <li className="px-1.5 pt-0.5 text-[11px] font-medium text-ink-faint">
+                +{view.steps.length - 5} etapas na página da meta
+              </li>
+            ) : null}
+          </ul>
         ) : null}
 
         <div className="mt-4 flex items-center justify-between gap-2 border-t border-line pt-3">

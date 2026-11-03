@@ -6,11 +6,13 @@ import { Cloud, CloudOff, Plus, X } from "lucide-react";
 import { NavLinks } from "./nav-config";
 import { Button } from "@/components/ui/Button";
 import { useStore } from "@/lib/data/store";
+import { QuickGoalModal } from "@/components/goals/QuickGoalModal";
 import { GoalFormModal } from "@/components/goals/GoalFormModal";
 
 export function Sidebar() {
   const { mode, user } = useStore();
   const [formOpen, setFormOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   return (
     <>
@@ -62,7 +64,15 @@ export function Sidebar() {
         </div>
       </aside>
 
-      <GoalFormModal open={formOpen} onClose={() => setFormOpen(false)} />
+      <QuickGoalModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onAdvanced={() => {
+          setFormOpen(false);
+          setAdvancedOpen(true);
+        }}
+      />
+      <GoalFormModal open={advancedOpen} onClose={() => setAdvancedOpen(false)} />
     </>
   );
 }
@@ -75,6 +85,7 @@ export function MobileDrawer({
   onClose: () => void;
 }) {
   const [formOpen, setFormOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 lg:hidden">
@@ -111,7 +122,15 @@ export function MobileDrawer({
           <NavLinks onNavigate={onClose} />
         </div>
       </div>
-      <GoalFormModal open={formOpen} onClose={() => setFormOpen(false)} />
+      <QuickGoalModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onAdvanced={() => {
+          setFormOpen(false);
+          setAdvancedOpen(true);
+        }}
+      />
+      <GoalFormModal open={advancedOpen} onClose={() => setAdvancedOpen(false)} />
     </div>
   );
 }

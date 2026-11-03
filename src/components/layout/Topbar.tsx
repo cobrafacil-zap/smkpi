@@ -20,6 +20,7 @@ import { Icon } from "@/components/ui/Icon";
 import { useStore } from "@/lib/data/store";
 import { buildGoalViews, buildNotices } from "@/lib/selectors";
 import { cn } from "@/lib/utils";
+import { QuickGoalModal } from "@/components/goals/QuickGoalModal";
 import { GoalFormModal } from "@/components/goals/GoalFormModal";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -41,6 +42,7 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
   const [openBell, setOpenBell] = useState(false);
   const [openUser, setOpenUser] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const bellRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
@@ -268,7 +270,15 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
 
       {false ? <Loader2 /> : null}
 
-      <GoalFormModal open={formOpen} onClose={() => setFormOpen(false)} />
+      <QuickGoalModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onAdvanced={() => {
+          setFormOpen(false);
+          setAdvancedOpen(true);
+        }}
+      />
+      <GoalFormModal open={advancedOpen} onClose={() => setAdvancedOpen(false)} />
     </header>
   );
 }

@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { navItems, isActivePath } from "./nav-config";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { QuickGoalModal } from "@/components/goals/QuickGoalModal";
 import { GoalFormModal } from "@/components/goals/GoalFormModal";
 
 const MOBILE_ITEMS = ["/", "/metas", "/habitos", "/evolucao", "/conquistas"];
@@ -13,6 +14,7 @@ const MOBILE_ITEMS = ["/", "/metas", "/habitos", "/evolucao", "/conquistas"];
 export function MobileNav() {
   const pathname = usePathname();
   const [formOpen, setFormOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   return (
     <>
@@ -69,7 +71,15 @@ export function MobileNav() {
         </div>
       </nav>
 
-      <GoalFormModal open={formOpen} onClose={() => setFormOpen(false)} />
+      <QuickGoalModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onAdvanced={() => {
+          setFormOpen(false);
+          setAdvancedOpen(true);
+        }}
+      />
+      <GoalFormModal open={advancedOpen} onClose={() => setAdvancedOpen(false)} />
     </>
   );
 }

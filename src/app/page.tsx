@@ -21,6 +21,7 @@ import { ProgressBar, ProgressRing } from "@/components/ui/Progress";
 import { Icon } from "@/components/ui/Icon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { EvolutionChart } from "@/components/charts/Charts";
+import { QuickGoalModal } from "@/components/goals/QuickGoalModal";
 import { GoalFormModal } from "@/components/goals/GoalFormModal";
 import { analyzeProgress } from "@/app/actions/ai";
 import { ProgressUpdateModal } from "@/components/goals/ProgressUpdateModal";
@@ -130,6 +131,7 @@ function ScopeSummary({
 export default function DashboardPage() {
   const { state } = useStore();
   const [formOpen, setFormOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [progressTarget, setProgressTarget] = useState<GoalView | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInsight, setAiInsight] = useState<{
@@ -506,7 +508,15 @@ export default function DashboardPage() {
         </Card>
       </section>
 
-      <GoalFormModal open={formOpen} onClose={() => setFormOpen(false)} />
+      <QuickGoalModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onAdvanced={() => {
+          setFormOpen(false);
+          setAdvancedOpen(true);
+        }}
+      />
+      <GoalFormModal open={advancedOpen} onClose={() => setAdvancedOpen(false)} />
       <ProgressUpdateModal
         view={progressTarget}
         open={Boolean(progressTarget)}
