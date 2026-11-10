@@ -148,12 +148,19 @@ export function QuickGoalModal({
       }
     >
       <div className="space-y-4">
-        <Field label="Qual é a meta?" htmlFor="quick-briefing" hint="1 frase já resolve">
+        <Field label="Qual é a meta?" htmlFor="quick-briefing" hint="1 frase já resolve · Enter cria a meta">
           <textarea
             id="quick-briefing"
             autoFocus
             value={briefing}
             onChange={(e) => setBriefing(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter cria a meta (Shift+Enter quebra linha, Cmd/Ctrl+Enter também cria)
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void create();
+              }
+            }}
             placeholder="Ex.: Lançar o curso de tráfego pago até dezembro com 50 alunos"
             className="min-h-[84px] w-full resize-y rounded-xl border border-line bg-surface px-3.5 py-3 text-[15px] leading-relaxed text-ink placeholder:text-ink-faint transition-colors focus:border-iris focus:outline-none focus:ring-4 focus:ring-iris/10"
           />
@@ -191,6 +198,12 @@ export function QuickGoalModal({
                   <Input
                     value={step}
                     onChange={(e) => setStep(i, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        setSteps((prev) => [...prev, ""]);
+                      }
+                    }}
                     className="h-9 text-[13.5px]"
                   />
                   <button

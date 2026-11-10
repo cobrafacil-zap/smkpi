@@ -29,6 +29,7 @@ export function GoalCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showAllSteps, setShowAllSteps] = useState(false);
 
   const { goal, breakdown, deadline, category } = view;
   const parent = state.goals.find((g) => g.id === goal.parentGoalId);
@@ -168,7 +169,7 @@ export function GoalCard({
           <ul className="mt-3 space-y-0.5">
             {view.steps
               .sort((a, b) => a.position - b.position)
-              .slice(0, 5)
+              .slice(0, showAllSteps ? view.steps.length : 5)
               .map((step) => (
                 <li key={step.id}>
                   <button
@@ -198,8 +199,16 @@ export function GoalCard({
                 </li>
               ))}
             {view.steps.length > 5 ? (
-              <li className="px-1.5 pt-0.5 text-[11px] font-medium text-ink-faint">
-                +{view.steps.length - 5} etapas na página da meta
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setShowAllSteps((v) => !v)}
+                  className="px-1.5 pt-0.5 text-[11.5px] font-semibold text-iris transition-colors hover:underline"
+                >
+                  {showAllSteps
+                    ? "Mostrar menos"
+                    : `Mostrar mais (+${view.steps.length - 5} ${view.steps.length - 5 === 1 ? "etapa" : "etapas"})`}
+                </button>
               </li>
             ) : null}
           </ul>

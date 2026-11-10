@@ -280,6 +280,12 @@ export function GoalFormModal({ open, onClose, goal, defaultCategoryId }: Props)
             id="goal-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submit();
+              }
+            }}
             placeholder="Ex.: Faturar R$ 100.000"
           />
         </Field>
@@ -440,6 +446,12 @@ export function GoalFormModal({ open, onClose, goal, defaultCategoryId }: Props)
                             prev.map((s, j) => (j === i ? { ...s, title: e.target.value } : s)),
                           )
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            setStepItems((prev) => [...prev, { title: "" }]);
+                          }
+                        }}
                         placeholder="Descreva a etapa"
                         className="h-9 text-[13.5px]"
                       />
