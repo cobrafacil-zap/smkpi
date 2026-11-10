@@ -316,3 +316,90 @@ export function evolutionStats(state: AppState, views: GoalView[], today: Date =
       : 0,
   };
 }
+
+/* ── Histórico semanal de hábitos ─────────────────────── */
+
+export interface HabitWeek {
+  /** ISO da segunda-feira da semana. */
+  key: string;
+  label: string;
+  isCurrent: boolean;
+  isPrevious: boolean;
+  done: number;
+  target: number;
+  percent: number;
+  /** Diferença de marcações em relação à semana anterior (null na mais antiga). */
+  diff: number | null;
+  perHabit: Array<{ habitId: string; title: string; color: string; done: number; target: number }>;
+}
+
+/**
+ * Resumo das últimas semanas (segunda → domingo), da mais recente para a
+ * mais antiga. Mostra o quanto foi cumprido em cada semana — o histórico
+ * nunca "zera": cada semana fica registrada.
+ */
+export function habitWeekHistory(
+  state: AppState,
+  weeks = 8,
+  today: Date = new Date(),
+): HabitWeek[] {
+  const { start: currentStart } = currentWeekRange(today);
+  const out: HabitWeek[] = [];
+
+  for (let i = 0; i < weeks; i++) {
+    const start = addDays(currentStart, -i * 7);
+    const end = addDays(start, 6);
+    const startIso = toISODate(start);
+    const endIso = toISODate(end);
+
+    const perHabit = state.habits.map((h) => {
+      const created = parseISODate(h.createdAt.slice(0, 10));
+      // hábito só conta nas semanas a partir da criação dele
+      const active = !created || created.getTime() <= end.getTime();
+      const done = state.habitLogs.filter(
+        (l) => l.habitId === h.id && l.logDate >= startIso && l.logDate <= endIso,
+      ).length;
+      return {
+        habitId: h.id,
+        title: h.title,
+        color: h.color,
+        done,
+        target: active ? h.targetPerWeek : 0,
+      };
+    });
+
+    const done = perHabit.reduce((acc, h) => acc + h.done, 0);
+    const target = perHabit.reduce((acc, h) => acc + h.target, 0);
+
+    const label =
+      i === 0
+        ? `Esta semana · ${formatWeek(start, end)}`
+        : i === 1
+          ? `Semana passada · ${formatWeek(start, end)}`
+          : formatWeek(start, end);
+
+    out.push({
+      key: startIso,
+      label,
+      isCurrent: i === 0,
+      isPrevious: i === 1,
+      done,
+      target,
+      percent: target ? (done / target) * 100 : 0,
+      diff: null,
+      perHabit,
+    });
+  }
+
+  // comparação com a semana anterior (a lista está da mais recente p/ trás)
+  for (let i = 0; i < out.length - 1; i++) {
+    out[i].diff = out[i].done - out[i + 1].done;
+  }
+
+  return out;
+}
+
+function formatWeek(start: Date, end: Date): string {
+  const fmt = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "short" });
+  return `${fmt.format(start)} – ${fmt.format(end)}`;
+}

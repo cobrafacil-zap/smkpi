@@ -5,14 +5,18 @@ import Link from "next/link";
 import {
   Check,
   Flame,
+  History,
   Link2,
   Pencil,
   Plus,
   Repeat2,
   Trash2,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
+import { CardHeader } from "@/components/ui/Card";
 import { Icon, ICON_NAMES } from "@/components/ui/Icon";
 import { Modal } from "@/components/ui/Modal";
 import { ProgressBar } from "@/components/ui/Progress";
@@ -20,6 +24,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import { useStore } from "@/lib/data/store";
 import { currentStreak } from "@/lib/achievements";
+import { habitWeekHistory } from "@/lib/selectors";
 import { currentWeekRange } from "@/lib/progress";
 import { CATEGORY_PALETTE } from "@/lib/constants";
 import type { Habit } from "@/lib/types";
@@ -59,6 +64,7 @@ export default function HabitosPage() {
   }, [state.habitLogs]);
 
   const streak = useMemo(() => currentStreak(state, today), [state, today]);
+  const weekHistory = useMemo(() => habitWeekHistory(state, 8, today), [state, today]);
   const doneToday = state.habits.filter((h) =>
     logsByHabit.get(h.id)?.has(todayIso),
   ).length;
@@ -258,6 +264,151 @@ export default function HabitosPage() {
           })}
         </section>
       )}
+
+      {/* Histórico semanal — nada zera, cada semana fica registrada */}
+      {weekHistory.some((w) => w.target > 0) ? (
+        <section className="card p-4 sm:p-5">
+          <CardHeader
+            title="Histórico semanal"
+            description="Quanto você cumpriu em cada semana — semana a semana, sem zerar"
+            icon={<History className="h-4 w-4" />}
+          />
+
+          <ul className="space-y-2">
+            {weekHistory.map((w) => (
+              <li
+                key={w.key}
+                className={cn(
+                  "flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-2.5 py-2 transition-colors sm:flex-nowrap",
+                  w.isCurrent ? "bg-iris-soft/50" : "hover:bg-ink/[0.02]",
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-full text-[12.5px] font-semibold sm:w-[168px] sm:shrink-0",
+                    w.isCurrent ? "text-iris-dark" : "text-ink-soft",
+                  )}
+                >
+                  {w.label}
+                </div>
+
+                <div className="min-w-[120px] flex-1">
+                  <ProgressBar
+                    value={w.percent}
+                    height="h-1.5"
+                    color={w.isCurrent ? undefined : "var(--ink-faint)"}
+                  />
+                </div>
+
+                <div className="w-[86px] shrink-0 text-right text-[12.5px] font-semibold tabular text-ink">
+                  {w.done} de {w.target}
+                </div>
+
+                <div
+                  className={cn(
+                    "flex w-[74px] shrink-0 items-center justify-end gap-1 text-[12px] font-bold tabular",
+                    w.diff === null || w.diff === 0
+                      ? "text-ink-faint"
+                      : w.diff > 0
+                        ? "text-jade"
+                        : "text-rose",
+                  )}
+                  title="Diferença de marcações em relação à semana anterior"
+                >
+                  {w.diff === null ? (
+                    "—"
+                  ) : w.diff === 0 ? (
+                    "igual"
+                  ) : (
+                    <>
+                      {w.diff > 0 ? (
+                        <TrendingUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <TrendingDown className="h-3.5 w-3.5" />
+                      )}
+                      {w.diff > 0 ? `+${w.diff}` : w.diff}
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* comparativo por hábito */}
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[560px] border-separate border-spacing-y-1">
+              <thead>
+                <tr>
+                  <th className="pb-1 pl-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                    Hábito
+                  </th>
+                  {weekHistory
+                    .slice(0, 6)
+                    .reverse()
+                    .map((w) => (
+                      <th
+                        key={w.key}
+                        className={cn(
+                          "pb-1 text-center text-[11px] font-semibold uppercase tracking-wide",
+                          w.isCurrent ? "text-iris" : "text-ink-faint",
+                        )}
+                      >
+                        {w.isCurrent ? "Esta" : w.isPrevious ? "Passada" : w.key.slice(5)}
+                      </th>
+                    ))}
+                </tr>
+              </thead>
+              <tbody>
+                {state.habits.map((h) => (
+                  <tr key={h.id}>
+                    <td className="py-1 pl-2.5">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{ background: h.color }}
+                        />
+                        <span className="truncate text-[12.5px] font-medium text-ink-soft">
+                          {h.title}
+                        </span>
+                      </span>
+                    </td>
+                    {weekHistory
+                      .slice(0, 6)
+                      .reverse()
+                      .map((w) => {
+                        const cell = w.perHabit.find((x) => x.habitId === h.id);
+                        const done = cell?.done ?? 0;
+                        const target = cell?.target ?? 0;
+                        const full = target > 0 && done >= target;
+                        return (
+                          <td key={w.key} className="py-1 text-center">
+                            <span
+                              className={cn(
+                                "inline-flex min-w-[42px] items-center justify-center rounded-lg px-1.5 py-1 text-[11px] font-bold tabular transition-colors",
+                                full
+                                  ? "text-white"
+                                  : done > 0
+                                    ? "bg-ink/[0.06] text-ink-soft"
+                                    : "bg-ink/[0.03] text-ink-faint",
+                              )}
+                              style={full ? { background: h.color } : undefined}
+                            >
+                              {target ? `${done}/${target}` : "—"}
+                            </span>
+                          </td>
+                        );
+                      })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-[11.5px] text-ink-faint">
+            Cada célula mostra as marcações da semana (feito / meta). As semanas passadas
+            continuam aqui para você comparar o ritmo.
+          </p>
+        </section>
+      ) : null}
 
       <p className="text-[12px] text-ink-faint">
         Toque nos dias da semana para corrigir registros passados. Os dias futuros ficam

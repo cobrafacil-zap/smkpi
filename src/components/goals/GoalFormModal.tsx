@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus, Sparkles, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { suggestSteps } from "@/app/actions/ai";
 import { Button } from "@/components/ui/Button";
@@ -39,7 +39,7 @@ function parseNumber(value: string): number | null {
 }
 
 export function GoalFormModal({ open, onClose, goal, defaultCategoryId }: Props) {
-  const { state, addGoal, updateGoal, addStep, addCategory } = useStore();
+  const { state, addGoal, updateGoal, addStep, updateStep, deleteStep, addCategory } = useStore();
   const { toast } = useToast();
 
   const [title, setTitle] = useState("");
@@ -59,7 +59,8 @@ export function GoalFormModal({ open, onClose, goal, defaultCategoryId }: Props)
   const [direction, setDirection] = useState<"increase" | "decrease">("increase");
   const [icon, setIcon] = useState("target");
   const [notes, setNotes] = useState("");
-  const [stepsText, setStepsText] = useState("");
+  const [stepItems, setStepItems] = useState<Array<{ id?: string; title: string }>>([]);
+  const [bulkSteps, setBulkSteps] = useState("");
   const [error, setError] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiMessage, setAiMessage] = useState("");
@@ -83,6 +84,13 @@ export function GoalFormModal({ open, onClose, goal, defaultCategoryId }: Props)
       const hasMetric = goal.metricTarget !== null;
       const stepCount = state.steps.filter((s) => s.goalId === goal.id).length;
       setMode(hasMetric && stepCount > 0 ? "misto" : hasMetric ? "valor" : "etapas");
+      setStepItems(
+        state.steps
+          .filter((s) => s.goalId === goal.id)
+          .sort((a, b) => a.position - b.position)
+          .map((s) => ({ id: s.id, title: s.title })),
+      );
+      setBulkSteps("");
       setMetricStart(goal.metricStart !== null ? String(goal.metricStart) : "");
       setMetricCurrent(goal.metricCurrent !== null ? String(goal.metricCurrent) : "");
       setMetricTarget(goal.metricTarget !== null ? String(goal.metricTarget) : "");
@@ -90,7 +98,6 @@ export function GoalFormModal({ open, onClose, goal, defaultCategoryId }: Props)
       setDirection(goal.metricDirection);
       setIcon(goal.icon || "target");
       setNotes(goal.notes);
-      setStepsText("");
       setNewCategory(null);
     } else {
       const cat = defaultCategoryId ?? state.categories[0]?.id ?? "";
@@ -111,7 +118,8 @@ export function GoalFormModal({ open, onClose, goal, defaultCategoryId }: Props)
       setDirection("increase");
       setIcon("target");
       setNotes("");
-      setStepsText("");
+      setStepItems([]);
+      setBulkSteps("");
       setNewCategory(null);
     }
   }, [open, goal, state.categories, state.steps, defaultCategoryId]);
@@ -156,16 +164,44 @@ export function GoalFormModal({ open, onClose, goal, defaultCategoryId }: Props)
       notes,
     };
 
+    // etapas: linhas novas (textarea em lote) entram depois das editadas
+    const bulkLines = bulkSteps
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const edited = stepItems.map((s) => ({ id: s.id, title: s.title.trim() }));
+
     if (isEdit && goal) {
       updateGoal(goal.id, payload);
-      toast("Meta atualizada.");
+
+      const original = state.steps.filter((s) => s.goalId === goal.id);
+      const keptIds = new Set(edited.filter((s) => s.id).map((s) => s.id as string));
+
+      // remove as etapas que saíram
+      original.forEach((s) => {
+        if (!keptIds.has(s.id)) deleteStep(s.id);
+      });
+      // atualiza os títulos alterados / adiciona as novas
+      edited.forEach((item) => {
+        const clean = item.title.trim();
+        if (!clean) return;
+        if (item.id) {
+          const before = original.find((s) => s.id === item.id);
+          if (!before || before.title !== clean) updateStep(item.id, { title: clean });
+        } else {
+          addStep(goal.id, clean);
+        }
+      });
+      bulkLines.forEach((line) => addStep(goal.id, line));
+
+      toast("Meta e etapas atualizadas.");
     } else {
       const created = addGoal(payload);
-      const lines = stepsText
-        .split("\n")
-        .map((l) => l.trim())
-        .filter(Boolean);
-      lines.forEach((line) => addStep(created.id, line));
+      edited
+        .map((s) => s.title.trim())
+        .filter(Boolean)
+        .forEach((line) => addStep(created.id, line));
+      bulkLines.forEach((line) => addStep(created.id, line));
       toast("Meta criada com sucesso!");
     }
     onClose();
@@ -185,7 +221,8 @@ export function GoalFormModal({ open, onClose, goal, defaultCategoryId }: Props)
       setAiMessage(result.message);
       return;
     }
-    setStepsText(result.data.steps.join("\n"));
+    setStepItems(result.data.steps.map((title) => ({ title })));
+    setBulkSteps("");
     setMode((m) => (m === "valor" ? "misto" : m));
     setAiMessage("Etapas sugeridas pela IA — revise e ajuste como quiser.");
   };
@@ -386,15 +423,64 @@ export function GoalFormModal({ open, onClose, goal, defaultCategoryId }: Props)
           <Field
             label="Etapas"
             optional
-            hint={isEdit ? "Adicione novas etapas (uma por linha)" : "Uma por linha"}
-            htmlFor="goal-steps"
+            hint="edite, remova ou adicione — tudo salvo ao confirmar"
           >
-            <Textarea
-              id="goal-steps"
-              value={stepsText}
-              onChange={(e) => setStepsText(e.target.value)}
-              placeholder={"Criar ideia\nDefinir produto\nCriar página de vendas"}
-            />
+            <div className="rounded-xl border border-line bg-ink/[0.02] p-3">
+              {stepItems.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {stepItems.map((item, i) => (
+                    <li key={item.id ?? `new-${i}`} className="flex items-center gap-2">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-iris-soft text-[11px] font-bold text-iris-dark">
+                        {i + 1}
+                      </span>
+                      <Input
+                        value={item.title}
+                        onChange={(e) =>
+                          setStepItems((prev) =>
+                            prev.map((s, j) => (j === i ? { ...s, title: e.target.value } : s)),
+                          )
+                        }
+                        placeholder="Descreva a etapa"
+                        className="h-9 text-[13.5px]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setStepItems((prev) => prev.filter((_, j) => j !== i))}
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-rose-soft hover:text-rose"
+                        aria-label="Remover etapa"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="py-1 text-[12.5px] text-ink-faint">
+                  Nenhuma etapa ainda. Use o botão abaixo ou deixe a IA sugerir.
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setStepItems((prev) => [...prev, { title: "" }])}
+                className="mt-2 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-iris hover:underline"
+              >
+                <Plus className="h-3.5 w-3.5" /> Adicionar etapa
+              </button>
+            </div>
+
+            <div className="mt-2">
+              <Textarea
+                id="goal-steps"
+                value={bulkSteps}
+                onChange={(e) => setBulkSteps(e.target.value)}
+                placeholder={
+                  "Ou cole várias etapas de uma vez (uma por linha)\nCriar ideia\nDefinir produto"
+                }
+                className="min-h-[72px] text-[13.5px]"
+              />
+            </div>
+
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Button
                 type="button"

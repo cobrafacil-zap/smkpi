@@ -173,8 +173,7 @@ export function QuickGoalModal({
           ) : null}
         </div>
 
-        {steps.length > 0 ? (
-          <div className="rounded-xl border border-line bg-ink/[0.02] p-3">
+        <div className="rounded-xl border border-line bg-ink/[0.02] p-3">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
                 Etapas da meta
@@ -213,7 +212,6 @@ export function QuickGoalModal({
               <Plus className="h-3.5 w-3.5" /> Adicionar etapa
             </button>
           </div>
-        ) : null}
 
         <details className="group rounded-xl border border-line px-4 py-3">
           <summary className="cursor-pointer list-none text-[13px] font-semibold text-ink-soft">

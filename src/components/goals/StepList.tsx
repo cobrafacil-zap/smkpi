@@ -18,9 +18,19 @@ export function StepList({
   steps: Step[];
   compact?: boolean;
 }) {
-  const { addStep, toggleStep, deleteStep } = useStore();
+  const { addStep, toggleStep, updateStep, deleteStep } = useStore();
   const { toast } = useToast();
   const [newStep, setNewStep] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+
+  const saveEdit = () => {
+    if (!editingId) return;
+    const clean = editingTitle.trim();
+    if (clean) updateStep(editingId, { title: clean });
+    setEditingId(null);
+    setEditingTitle("");
+  };
 
   const ordered = [...steps].sort((a, b) => a.position - b.position);
 
@@ -55,14 +65,36 @@ export function StepList({
                 <Check className="h-3.5 w-3.5" strokeWidth={3} />
               </button>
               <div className="min-w-0 flex-1">
-                <p
-                  className={cn(
-                    "text-[13.5px] font-medium leading-snug",
-                    step.done ? "text-ink-faint line-through" : "text-ink",
-                  )}
-                >
-                  {step.title}
-                </p>
+                {editingId === step.id ? (
+                  <input
+                    autoFocus
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onBlur={saveEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        saveEdit();
+                      }
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                    className="w-full rounded-lg border border-iris bg-surface px-2 py-1 text-[13.5px] font-medium text-ink focus:outline-none focus:ring-2 focus:ring-iris/20"
+                  />
+                ) : (
+                  <p
+                    onClick={() => {
+                      setEditingId(step.id);
+                      setEditingTitle(step.title);
+                    }}
+                    title="Clique para editar a etapa"
+                    className={cn(
+                      "cursor-text rounded-md text-[13.5px] font-medium leading-snug transition-colors hover:bg-ink/[0.04]",
+                      step.done ? "text-ink-faint line-through" : "text-ink",
+                    )}
+                  >
+                    {step.title}
+                  </p>
+                )}
                 {!compact && step.done && step.doneAt ? (
                   <p className="text-[11px] text-ink-faint">Concluída em {formatDate(step.doneAt)}</p>
                 ) : null}
