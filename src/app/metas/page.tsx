@@ -35,9 +35,15 @@ export default function MetasPage() {
 
   // "?status=ativa" (links do dashboard) pré-filtram a lista
   useEffect(() => {
-    const param = new URLSearchParams(window.location.search).get("status");
+    const params = new URLSearchParams(window.location.search);
+    const param = params.get("status");
     if (param === "ativa" || param === "concluida" || param === "pausada") {
       setStatus(param);
+    }
+    const prio = params.get("priority");
+    if (prio === "urgente" || prio === "alta" || prio === "media" || prio === "baixa") {
+      setPriority(prio);
+      setFiltersOpen(true);
     }
   }, []);
 

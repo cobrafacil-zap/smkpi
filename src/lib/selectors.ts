@@ -229,6 +229,8 @@ export interface Notice {
   description: string;
   href: string;
   goalId?: string;
+  /** Quanto maior, mais no topo da lista aparece. */
+  weight?: number;
 }
 
 export function buildNotices(state: AppState, views: GoalView[], today: Date = new Date()): Notice[] {
@@ -238,6 +240,19 @@ export function buildNotices(state: AppState, views: GoalView[], today: Date = n
   views
     .filter((v) => v.goal.status === "ativa")
     .forEach((v) => {
+      // meta urgente sempre aparece em destaque no topo
+      if (v.goal.priority === "urgente") {
+        notices.push({
+          id: `urgent_${v.goal.id}`,
+          tone: "danger",
+          title: `Meta urgente: ${v.goal.title}`,
+          description: `${Math.round(v.breakdown.total)}% concluída · ${v.deadline.label}`,
+          href: `/metas/${v.goal.id}`,
+          goalId: v.goal.id,
+          weight: 10,
+        });
+      }
+
       const days = v.daysSinceUpdate;
       if (days >= s.notifyStaleDays) {
         notices.push({
@@ -289,7 +304,9 @@ export function buildNotices(state: AppState, views: GoalView[], today: Date = n
     });
 
   const order: Record<NoticeTone, number> = { danger: 0, warning: 1, success: 2, info: 3 };
-  return notices.sort((a, b) => order[a.tone] - order[b.tone]).slice(0, 12);
+  return notices
+    .sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0) || order[a.tone] - order[b.tone])
+    .slice(0, 12);
 }
 
 /** Estatísticas da área "Minha evolução". */

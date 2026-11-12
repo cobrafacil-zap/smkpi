@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Bell,
+  Flame,
   Menu,
   Moon,
   Plus,
@@ -55,6 +56,9 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
 
   const views = buildGoalViews(state);
   const notices = buildNotices(state, views);
+  const urgentes = views.filter(
+    (v) => v.goal.status === "ativa" && v.goal.priority === "urgente",
+  );
   const results = search.trim()
     ? views
         .filter((v) =>
@@ -148,6 +152,21 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
             </div>
           ) : null}
         </div>
+
+        {/* metas urgentes em destaque */}
+        {urgentes.length > 0 ? (
+          <Link
+            href="/metas?priority=urgente"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-pill bg-rose-soft px-2.5 py-1.5 text-[11.5px] font-bold text-rose-dark transition-colors hover:bg-rose hover:text-white"
+            title="Ver metas urgentes"
+          >
+            <Flame className="h-3.5 w-3.5" />
+            <span className="tabular">{urgentes.length}</span>
+            <span className="hidden sm:inline">
+              {urgentes.length === 1 ? "urgente" : "urgentes"}
+            </span>
+          </Link>
+        ) : null}
 
         {/* tema */}
         <button
