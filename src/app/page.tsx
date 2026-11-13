@@ -23,6 +23,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { EvolutionChart } from "@/components/charts/Charts";
 import { QuickGoalModal } from "@/components/goals/QuickGoalModal";
 import { GoalFormModal } from "@/components/goals/GoalFormModal";
+import { FocusToday } from "@/components/dashboard/FocusToday";
 import { analyzeProgress } from "@/app/actions/ai";
 import { ProgressUpdateModal } from "@/components/goals/ProgressUpdateModal";
 import { useStore } from "@/lib/data/store";
@@ -151,6 +152,9 @@ export default function DashboardPage() {
     (v) => v.goal.priority === "urgente" && v.goal.status === "ativa",
   );
   const late = views.filter((v) => v.deadline.tone === "late");
+  const stalled = views.filter(
+    (v) => v.goal.status === "ativa" && v.daysSinceUpdate >= 14,
+  );
 
   const name = state.settings.displayName?.trim();
   const metricGoal = views.find(
@@ -263,6 +267,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Foco de hoje */}
+      <FocusToday />
 
       {/* KPIs */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -426,7 +433,15 @@ export default function DashboardPage() {
               icon={<TriangleAlert className="h-4 w-4" />}
             />
             <div className="flex flex-wrap gap-2">
-              {[...late, ...urgent.filter((u) => !late.some((l) => l.goal.id === u.goal.id))].map(
+              {[
+                ...late,
+                ...urgent.filter((u) => !late.some((l) => l.goal.id === u.goal.id)),
+                ...stalled.filter(
+                  (st) =>
+                    !late.some((l) => l.goal.id === st.goal.id) &&
+                    !urgent.some((u) => u.goal.id === st.goal.id),
+                ),
+              ].map(
                 (v) => (
                   <Link
                     key={v.goal.id}

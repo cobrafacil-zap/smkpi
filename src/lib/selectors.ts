@@ -255,13 +255,17 @@ export function buildNotices(state: AppState, views: GoalView[], today: Date = n
 
       const days = v.daysSinceUpdate;
       if (days >= s.notifyStaleDays) {
+        const parada = days >= 14;
         notices.push({
           id: `stale_${v.goal.id}`,
-          tone: "warning",
-          title: `Você não atualiza esta meta há ${days} dias`,
-          description: v.goal.title,
+          tone: parada ? "danger" : "warning",
+          title: parada
+            ? `Meta parada há ${days} dias`
+            : `Você não atualiza esta meta há ${days} dias`,
+          description: `${v.goal.title} · ${Math.round(v.breakdown.total)}% concluída`,
           href: `/metas/${v.goal.id}`,
           goalId: v.goal.id,
+          weight: parada ? 8 : 2,
         });
       }
       const dl = v.deadline.daysLeft;
@@ -302,6 +306,23 @@ export function buildNotices(state: AppState, views: GoalView[], today: Date = n
         });
       }
     });
+
+  // metas recorrentes renovadas automaticamente nas últimas 24h
+  views.forEach((v) => {
+    const isRecurring = ["semanal", "mensal", "anual"].includes(v.goal.cadence);
+    const criadaAgora = Date.now() - new Date(v.goal.createdAt).getTime() < 24 * 3600e3;
+    if (isRecurring && criadaAgora && v.goal.status === "ativa") {
+      notices.push({
+        id: `renewed_${v.goal.id}`,
+        tone: "info",
+        title: `Meta recorrente renovada: ${v.goal.title}`,
+        description: `Novo período iniciado — ${v.deadline.label}`,
+        href: `/metas/${v.goal.id}`,
+        goalId: v.goal.id,
+        weight: 6,
+      });
+    }
+  });
 
   const order: Record<NoticeTone, number> = { danger: 0, warning: 1, success: 2, info: 3 };
   return notices

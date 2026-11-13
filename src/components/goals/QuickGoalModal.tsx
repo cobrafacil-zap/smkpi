@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { useStore } from "@/lib/data/store";
-import { suggestSteps } from "@/app/actions/ai";
+import { planGoal, suggestSteps } from "@/app/actions/ai";
 import { CADENCE_LABEL, PRIORITY_LABEL } from "@/lib/constants";
 import type { GoalCadence, GoalPriority } from "@/lib/types";
 import { cn, toISODate } from "@/lib/utils";
@@ -36,6 +36,13 @@ export function QuickGoalModal({
   const [cadence, setCadence] = useState<GoalCadence>("sem-prazo");
   const [dueDate, setDueDate] = useState("");
   const [steps, setSteps] = useState<string[]>([]);
+  const [metric, setMetric] = useState<{
+    start: number;
+    current: number;
+    target: number;
+    unit: string;
+    direction: "increase" | "decrease";
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [aiMessage, setAiMessage] = useState("");
@@ -47,6 +54,7 @@ export function QuickGoalModal({
     setCadence("sem-prazo");
     setDueDate("");
     setSteps([]);
+    setMetric(null);
     setAiMessage("");
     setLoading(false);
     setCreating(false);
@@ -65,7 +73,7 @@ export function QuickGoalModal({
     setLoading(true);
     setAiMessage("");
     const category = state.categories.find((c) => c.id === categoryId);
-    const result = await suggestSteps({
+    const result = await planGoal({
       title: briefing.trim(),
       category: category?.name,
       dueDate: dueDate || null,
@@ -80,7 +88,14 @@ export function QuickGoalModal({
       return;
     }
     setSteps(result.data.steps);
-    setAiMessage(`${result.data.steps.length} etapas sugeridas — revise e ajuste.`);
+    if (result.data.metric && result.data.metric.target > 0) {
+      setMetric(result.data.metric);
+      setAiMessage(
+        `${result.data.steps.length} etapas sugeridas + meta por valor (${result.data.metric.unit} ${result.data.metric.target}).`,
+      );
+    } else {
+      setAiMessage(`${result.data.steps.length} etapas sugeridas — revise e ajuste.`);
+    }
   };
 
   const create = async () => {
@@ -95,7 +110,7 @@ export function QuickGoalModal({
     let finalSteps = steps.filter((s) => s.trim());
     if (finalSteps.length === 0) {
       setLoading(true);
-      const result = await suggestSteps({ title, dueDate: dueDate || null });
+      const result = await planGoal({ title, dueDate: dueDate || null });
       setLoading(false);
       finalSteps = result.data?.steps?.filter((s) => s.trim()) ?? [];
     }
@@ -109,10 +124,11 @@ export function QuickGoalModal({
       cadence,
       startDate: toISODate(),
       dueDate: dueDate || null,
-      metricStart: null,
-      metricCurrent: null,
-      metricTarget: null,
-      metricUnit: "",
+      metricStart: metric ? metric.start : null,
+      metricCurrent: metric ? metric.current : null,
+      metricTarget: metric ? metric.target : null,
+      metricUnit: metric ? metric.unit : "",
+      metricDirection: metric ? metric.direction : "increase",
       icon: "target",
       notes: "",
     });
@@ -225,6 +241,72 @@ export function QuickGoalModal({
               <Plus className="h-3.5 w-3.5" /> Adicionar etapa
             </button>
           </div>
+
+        {metric ? (
+          <div className="rounded-xl border border-jade/30 bg-jade-soft/40 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[12px] font-semibold uppercase tracking-wide text-jade-dark">
+                Meta por valor / quantidade
+              </p>
+              <button
+                type="button"
+                onClick={() => setMetric(null)}
+                className="text-[11.5px] font-semibold text-ink-faint hover:text-ink"
+              >
+                remover valor
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <Field label="Inicial">
+                <Input
+                  inputMode="decimal"
+                  value={String(metric.start)}
+                  onChange={(e) => setMetric({ ...metric, start: Number(e.target.value.replace(",", ".")) || 0 })}
+                  className="h-9 text-[13px]"
+                />
+              </Field>
+              <Field label="Atual">
+                <Input
+                  inputMode="decimal"
+                  value={String(metric.current)}
+                  onChange={(e) => setMetric({ ...metric, current: Number(e.target.value.replace(",", ".")) || 0 })}
+                  className="h-9 text-[13px]"
+                />
+              </Field>
+              <Field label="Desejado">
+                <Input
+                  inputMode="decimal"
+                  value={String(metric.target)}
+                  onChange={(e) => setMetric({ ...metric, target: Number(e.target.value.replace(",", ".")) || 0 })}
+                  className="h-9 text-[13px]"
+                />
+              </Field>
+              <Field label="Unidade">
+                <Input
+                  value={metric.unit}
+                  onChange={(e) => setMetric({ ...metric, unit: e.target.value })}
+                  placeholder="R$, kg, %"
+                  className="h-9 text-[13px]"
+                />
+              </Field>
+              <Field label="Direção">
+                <Select
+                  value={metric.direction}
+                  onChange={(e) =>
+                    setMetric({ ...metric, direction: e.target.value as "increase" | "decrease" })
+                  }
+                  className="h-9 text-[13px]"
+                >
+                  <option value="increase">Aumentar</option>
+                  <option value="decrease">Reduzir</option>
+                </Select>
+              </Field>
+            </div>
+            <p className="mt-1.5 text-[11px] text-ink-faint">
+              O progresso da meta é calculado sozinho a partir desses valores.
+            </p>
+          </div>
+        ) : null}
 
         <details className="group rounded-xl border border-line px-4 py-3">
           <summary className="cursor-pointer list-none text-[13px] font-semibold text-ink-soft">

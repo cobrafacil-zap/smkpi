@@ -153,6 +153,41 @@ Prazo: ${input.dueDate ?? "sem prazo"}`;
   return ask<{ steps: string[] }>(prompt, { steps: [] });
 }
 
+/** Planeja uma meta: etapas + métrica numérica quando houver valor/quantidade. */
+export async function planGoal(input: {
+  title: string;
+  description?: string;
+  category?: string;
+  dueDate?: string | null;
+}): Promise<
+  AiResult<{
+    steps: string[];
+    metric: {
+      start: number;
+      current: number;
+      target: number;
+      unit: string;
+      direction: "increase" | "decrease";
+    } | null;
+  }>
+> {
+  const prompt = `Você é um strategist de metas. Responda APENAS com JSON no formato:
+{"steps":["..."],"metric":{"start":0,"current":0,"target":0,"unit":"R$","direction":"increase"}}
+
+Regras:
+- "steps": de 4 a 7 etapas objetivas, em ordem cronológica.
+- "metric": quando a meta tiver valor ou quantidade mensurável (dinheiro, kg, km, livros, clientes…),
+  devolva start (ponto de partida), current (valor atual, normalmente igual a start), target (objetivo),
+  unit (ex.: "R$", "kg", "livros", "clientes") e direction ("increase" para crescer até a meta,
+  "decrease" para reduzir até a meta, como em peso). Se não houver métrica clara, use null.
+
+Meta: ${input.title}
+Categoria: ${input.category ?? "geral"}
+Descrição: ${input.description ?? "-"}
+Prazo: ${input.dueDate ?? "sem prazo"}`;
+  return ask(prompt, { steps: [], metric: null });
+}
+
 /** Transforma um sonho em sugestões de metas acionáveis. */
 export async function suggestGoalsFromDream(input: {
   title: string;

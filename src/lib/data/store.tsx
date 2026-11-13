@@ -34,7 +34,8 @@ import {
 import { SUPABASE_URL, cloudBackend, getSupabase } from "./backend";
 import { computeProgress } from "@/lib/progress";
 import { evaluateAchievements } from "@/lib/achievements";
-import { uid } from "@/lib/utils";
+import { parseISODate, toISODate, uid } from "@/lib/utils";
+import { decodeFocusItem, encodeFocusItem, isFocusKey, type FocusItem } from "@/lib/focus";
 
 export type Mode = "local" | "cloud";
 
@@ -76,6 +77,10 @@ export interface StoreContextValue {
   deleteDream: (id: string) => void;
   /* configurações */
   updateSettings: (patch: Partial<Settings>) => void;
+  /* foco de hoje */
+  saveFocusItems: (items: FocusItem[]) => void;
+  /* metas recorrentes: renova o período automaticamente */
+  rolloverRecurringGoals: () => string[];
   /* dados */
   resetDemo: () => void;
   clearAll: () => void;
@@ -202,6 +207,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }, 350);
     return () => window.clearTimeout(timer);
   }, [state, ready, mode, user]);
+
+  /* ── Renovação automática de metas recorrentes ─────── */
+  const rolledRef = useRef(false);
+  useEffect(() => {
+    if (!ready || rolledRef.current) return;
+    rolledRef.current = true;
+    rolloverRecurringGoals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   /* ── Sincronização entre abas (modo local) ─────────── */
   useEffect(() => {
@@ -559,6 +573,126 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [patch],
   );
 
+  /** Renova metas recorrentes (semanal/mensal/anual) cujo período já venceu. */
+  const rolloverRecurringGoals: StoreContextValue["rolloverRecurringGoals"] = useCallback(() => {
+    const today = new Date();
+    const todayIso = toISODate(today);
+    const created: string[] = [];
+
+    setState((prev) => {
+      const nextGoals: Goal[] = [];
+      const newSteps: Step[] = [];
+
+      const periodEnd = (goal: Goal, from: Date): { start: string; end: string } => {
+        const start = new Date(from);
+        if (goal.cadence === "semanal") {
+          const end = new Date(start);
+          end.setDate(end.getDate() + 6);
+          return { start: toISODate(start), end: toISODate(end) };
+        }
+        if (goal.cadence === "anual") {
+          const end = new Date(start.getFullYear() + 1, start.getMonth(), start.getDate() - 1);
+          return { start: toISODate(start), end: toISODate(end) };
+        }
+        // mensal
+        const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+        return { start: toISODate(start), end: toISODate(end) };
+      };
+
+      const closeOld = (goal: Goal): Goal => {
+        const pct = computeProgress(goal, prev.steps.filter((x) => x.goalId === goal.id)).total;
+        return {
+          ...goal,
+          status: pct >= 100 ? "concluida" : "pausada",
+          completedAt: pct >= 100 ? nowIso() : goal.completedAt,
+          notes: `${goal.notes}${goal.notes ? "\n\n" : ""}[Período encerrado em ${todayIso} — atingiu ${Math.round(pct)}%]`,
+          updatedAt: nowIso(),
+        };
+      };
+
+      for (const goal of prev.goals) {
+        const isRecurring = ["semanal", "mensal", "anual"].includes(goal.cadence);
+        const due = parseISODate(goal.dueDate);
+        const venceu = due ? due.getTime() < today.getTime() : false;
+        const jaTemSucessor = prev.goals.some(
+          (g) =>
+            g.id !== goal.id &&
+            g.title === goal.title &&
+            g.cadence === goal.cadence &&
+            (parseISODate(g.dueDate)?.getTime() ?? 0) > (due?.getTime() ?? 0),
+        );
+
+        if (goal.status === "ativa" && isRecurring && venceu && !jaTemSucessor) {
+          const from = due ? new Date(due.getTime() + 86_400_000) : today;
+          const { start, end } = periodEnd(goal, from);
+          const id = uid();
+          created.push(goal.title);
+
+          nextGoals.push(closeOld(goal));
+          nextGoals.push({
+            ...goal,
+            id,
+            startDate: start,
+            dueDate: end,
+            metricCurrent: goal.metricStart ?? 0,
+            status: "ativa",
+            completedAt: null,
+            createdAt: nowIso(),
+            updatedAt: nowIso(),
+            notes: "",
+          });
+
+          // etapas do período anterior voltam a ficar em aberto
+          prev.steps
+            .filter((st) => st.goalId === goal.id)
+            .sort((a, b) => a.position - b.position)
+            .forEach((st, idx) => {
+              newSteps.push({
+                ...st,
+                id: uid(),
+                goalId: id,
+                done: false,
+                doneAt: null,
+                position: idx,
+                createdAt: nowIso(),
+              });
+            });
+        }
+      }
+
+      if (!created.length) return prev;
+
+      const touched = new Set(nextGoals.map((g) => g.id));
+      const goals = [
+        ...nextGoals,
+        ...prev.goals.filter((g) => !touched.has(g.id)),
+      ];
+      return { ...prev, goals, steps: [...prev.steps, ...newSteps] };
+    });
+
+    return created;
+  }, []);
+
+  const saveFocusItems: StoreContextValue["saveFocusItems"] = useCallback(
+    (items) => {
+      patch((prev) => {
+        // substitui apenas os itens dos dias enviados; o resto do histórico fica
+        const dates = new Set(items.map((i) => i.date));
+        const kept = prev.achievements.filter((a) => {
+          if (!isFocusKey(a.key)) return true;
+          const item = decodeFocusItem(a);
+          return item ? !dates.has(item.date) : true;
+        });
+        const records = items.map((item) => ({
+          ...encodeFocusItem({ ...item, doneAt: item.done ? (item.doneAt ?? nowIso()) : null }),
+          userId: prev.settings.userId,
+        }));
+        return { ...prev, achievements: [...kept, ...records] };
+      });
+    },
+    [patch],
+  );
+
   const updateSettings: StoreContextValue["updateSettings"] = useCallback(
     (patchData) => {
       patch((prev) => ({
@@ -767,6 +901,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       updateDream,
       deleteDream,
       updateSettings,
+      saveFocusItems,
+      rolloverRecurringGoals,
       resetDemo,
       clearAll,
       exportJson,
@@ -804,6 +940,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       updateDream,
       deleteDream,
       updateSettings,
+      saveFocusItems,
+      rolloverRecurringGoals,
       resetDemo,
       clearAll,
       exportJson,
