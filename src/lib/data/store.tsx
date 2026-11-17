@@ -36,6 +36,7 @@ import { computeProgress } from "@/lib/progress";
 import { evaluateAchievements } from "@/lib/achievements";
 import { parseISODate, toISODate, uid } from "@/lib/utils";
 import { decodeFocusItem, encodeFocusItem, isFocusKey, type FocusItem } from "@/lib/focus";
+import { encodeHabitDays, isHabitDaysKey } from "@/lib/habit-days";
 
 export type Mode = "local" | "cloud";
 
@@ -79,6 +80,8 @@ export interface StoreContextValue {
   updateSettings: (patch: Partial<Settings>) => void;
   /* foco de hoje */
   saveFocusItems: (items: FocusItem[]) => void;
+  /* dias da semana de um hábito (vazio = qualquer dia) */
+  saveHabitDays: (habitId: string, days: number[]) => void;
   /* metas recorrentes: renova o período automaticamente */
   rolloverRecurringGoals: () => string[];
   /* dados */
@@ -574,6 +577,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 
   /** Renova metas recorrentes (semanal/mensal/anual) cujo período já venceu. */
+  const saveHabitDays: StoreContextValue["saveHabitDays"] = useCallback(
+    (habitId, days) => {
+      patch((prev) => {
+        const kept = prev.achievements.filter(
+          (a) => !(isHabitDaysKey(a.key) && a.key.includes(`:${habitId}:`)),
+        );
+        const record = days.length
+          ? [{ ...encodeHabitDays(habitId, days), userId: prev.settings.userId }]
+          : [];
+        return { ...prev, achievements: [...kept, ...record] };
+      });
+    },
+    [patch],
+  );
+
   const rolloverRecurringGoals: StoreContextValue["rolloverRecurringGoals"] = useCallback(() => {
     const today = new Date();
     const todayIso = toISODate(today);
@@ -902,6 +920,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       deleteDream,
       updateSettings,
       saveFocusItems,
+      saveHabitDays,
       rolloverRecurringGoals,
       resetDemo,
       clearAll,
@@ -941,6 +960,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       deleteDream,
       updateSettings,
       saveFocusItems,
+      saveHabitDays,
       rolloverRecurringGoals,
       resetDemo,
       clearAll,

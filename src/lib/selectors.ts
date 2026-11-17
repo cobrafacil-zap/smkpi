@@ -11,6 +11,7 @@ import {
 } from "./progress";
 import { PRIORITY_ORDER } from "./constants";
 import { addDays, monthKey, parseISODate, startOfDay, toISODate } from "./utils";
+import { decodeHabitDays, isoWeekDay, weeklyTarget } from "./habit-days";
 
 export interface GoalView {
   goal: Goal;
@@ -383,6 +384,7 @@ export function habitWeekHistory(
 ): HabitWeek[] {
   const { start: currentStart } = currentWeekRange(today);
   const out: HabitWeek[] = [];
+  const schedules = decodeHabitDays(state.achievements);
 
   for (let i = 0; i < weeks; i++) {
     const start = addDays(currentStart, -i * 7);
@@ -394,6 +396,11 @@ export function habitWeekHistory(
       const created = parseISODate(h.createdAt.slice(0, 10));
       // hábito só conta nas semanas a partir da criação dele
       const active = !created || created.getTime() <= end.getTime();
+      const scheduled = schedules.get(h.id) ?? [];
+      // dias do hábito dentro desta semana (cronograma fixo)
+      const diasDaSemana = Array.from({ length: 7 }, (_, d) => d + 1).filter(
+        (d) => !scheduled.length || scheduled.includes(d),
+      );
       const done = state.habitLogs.filter(
         (l) => l.habitId === h.id && l.logDate >= startIso && l.logDate <= endIso,
       ).length;
@@ -402,7 +409,7 @@ export function habitWeekHistory(
         title: h.title,
         color: h.color,
         done,
-        target: active ? h.targetPerWeek : 0,
+        target: active ? (scheduled.length ? diasDaSemana.length : h.targetPerWeek) : 0,
       };
     });
 

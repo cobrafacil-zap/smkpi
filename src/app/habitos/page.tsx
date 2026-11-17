@@ -24,6 +24,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import { useStore } from "@/lib/data/store";
 import { currentStreak } from "@/lib/achievements";
+import { decodeHabitDays, isoWeekDay, weeklyTarget } from "@/lib/habit-days";
 import { habitWeekHistory } from "@/lib/selectors";
 import { currentWeekRange } from "@/lib/progress";
 import { CATEGORY_PALETTE } from "@/lib/constants";
@@ -33,7 +34,7 @@ import { addDays, cn, toISODate } from "@/lib/utils";
 const WEEK_LETTER = ["S", "T", "Q", "Q", "S", "S", "D"];
 
 export default function HabitosPage() {
-  const { state, addHabit, updateHabit, deleteHabit, toggleHabitDay } = useStore();
+  const { state, addHabit, updateHabit, deleteHabit, toggleHabitDay, saveHabitDays } = useStore();
   const { toast } = useToast();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -43,6 +44,7 @@ export default function HabitosPage() {
   const [color, setColor] = useState(CATEGORY_PALETTE[0].color);
   const [goalId, setGoalId] = useState("");
   const [targetPerWeek, setTargetPerWeek] = useState(5);
+  const [days, setDays] = useState<number[]>([]);
 
   const today = new Date();
   const todayIso = toISODate(today);
@@ -64,6 +66,7 @@ export default function HabitosPage() {
   }, [state.habitLogs]);
 
   const streak = useMemo(() => currentStreak(state, today), [state, today]);
+  const schedules = useMemo(() => decodeHabitDays(state.achievements), [state.achievements]);
   const weekHistory = useMemo(() => habitWeekHistory(state, 8, today), [state, today]);
   const doneToday = state.habits.filter((h) =>
     logsByHabit.get(h.id)?.has(todayIso),
@@ -77,6 +80,7 @@ export default function HabitosPage() {
       setColor(habit.color);
       setGoalId(habit.goalId ?? "");
       setTargetPerWeek(habit.targetPerWeek);
+      setDays(schedules.get(habit.id) ?? []);
     } else {
       setEditing(null);
       setTitle("");
@@ -84,6 +88,7 @@ export default function HabitosPage() {
       setColor(CATEGORY_PALETTE[state.habits.length % CATEGORY_PALETTE.length].color);
       setGoalId("");
       setTargetPerWeek(5);
+      setDays([]);
     }
     setFormOpen(true);
   };
@@ -93,12 +98,15 @@ export default function HabitosPage() {
       toast("Dê um nome ao hábito.", "error");
       return;
     }
-    const payload = { title, icon, color, goalId: goalId || null, targetPerWeek };
+    const alvo = days.length ? days.length : targetPerWeek;
+    const payload = { title, icon, color, goalId: goalId || null, targetPerWeek: alvo };
     if (editing) {
       updateHabit(editing.id, payload);
+      saveHabitDays(editing.id, days);
       toast("Hábito atualizado.");
     } else {
-      addHabit(payload);
+      const created = addHabit(payload);
+      saveHabitDays(created.id, days);
       toast("Hábito criado!");
     }
     setFormOpen(false);
@@ -156,8 +164,13 @@ export default function HabitosPage() {
         <section className="space-y-3">
           {state.habits.map((habit) => {
             const logs = logsByHabit.get(habit.id) ?? new Set<string>();
+            const scheduled = schedules.get(habit.id) ?? [];
+            const target = weeklyTarget(habit, schedules);
             const markedToday = logs.has(todayIso);
-            const weekCount = weekDays.filter((d) => logs.has(toISODate(d))).length;
+            const weekCount = weekDays
+              .filter((d, i) => !scheduled.length || scheduled.includes(i + 1))
+              .filter((d) => logs.has(toISODate(d)))
+              .length;
             const goal = state.goals.find((g) => g.id === habit.goalId);
 
             return (
@@ -182,7 +195,10 @@ export default function HabitosPage() {
                     </h3>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-ink-faint">
                       <span>
-                        {weekCount} de {habit.targetPerWeek} esta semana
+                        {weekCount} de {target} esta semana
+                        {scheduled.length
+                          ? ` · ${scheduled.map((d) => WEEK_LETTER[d - 1]).join(" ")}`
+                          : ""}
                       </span>
                       {goal ? (
                         <Link
@@ -203,22 +219,29 @@ export default function HabitosPage() {
                       const done = logs.has(iso);
                       const future = date.getTime() > today.getTime();
                       const isToday = iso === todayIso;
+                      const allowed = !scheduled.length || scheduled.includes(i + 1);
                       return (
                         <button
                           key={iso}
-                          disabled={future}
+                          disabled={future || !allowed}
                           onClick={() => toggleHabitDay(habit.id, iso)}
-                          title={`${WEEK_LETTER[i]} · ${date.getDate()}/${date.getMonth() + 1}`}
+                          title={
+                            allowed
+                              ? `${WEEK_LETTER[i]} · ${date.getDate()}/${date.getMonth() + 1}`
+                              : "Dia fora do cronograma deste hábito"
+                          }
                           className={cn(
                             "flex h-12 w-11 flex-col items-center justify-center gap-0.5 rounded-xl border text-[11px] font-semibold transition-all",
-                            done
-                              ? "border-transparent text-white"
-                              : future
-                                ? "cursor-not-allowed border-line/60 text-ink-faint/40"
-                                : "border-line text-ink-faint hover:border-iris/50 hover:text-ink",
-                            isToday && !done && "ring-2 ring-iris/40",
+                            !allowed
+                              ? "cursor-not-allowed border-dashed border-line/60 text-ink-faint/30"
+                              : done
+                                ? "border-transparent text-white"
+                                : future
+                                  ? "cursor-not-allowed border-line/60 text-ink-faint/40"
+                                  : "border-line text-ink-faint hover:border-iris/50 hover:text-ink",
+                            isToday && !done && allowed && "ring-2 ring-iris/40",
                           )}
-                          style={done ? { background: habit.color } : undefined}
+                          style={done && allowed ? { background: habit.color } : undefined}
                         >
                           <span className="text-[9px] uppercase tracking-wide opacity-80">
                             {WEEK_LETTER[i]}
@@ -411,8 +434,8 @@ export default function HabitosPage() {
       ) : null}
 
       <p className="text-[12px] text-ink-faint">
-        Toque nos dias da semana para corrigir registros passados. Os dias futuros ficam
-        desativados até chegarem.
+        Toque nos dias da semana para corrigir registros passados. Dias futuros e dias
+        fora do cronograma do hábito ficam desativados.
       </p>
 
       {/* Modal de criar/editar hábito */}
@@ -452,7 +475,44 @@ export default function HabitosPage() {
                 onChange={(e) => setTargetPerWeek(Number(e.target.value))}
               />
             </Field>
-            <Field label="Meta relacionada" optional>
+            <Field
+            label="Dias do hábito"
+            optional
+            hint={days.length ? `${days.length}x por semana` : "qualquer dia"}
+          >
+            <div className="flex gap-1.5">
+              {WEEK_LETTER.map((letter, idx) => {
+                const day = idx + 1;
+                const on = days.includes(day);
+                return (
+                  <button
+                    key={`${letter}-${idx}`}
+                    type="button"
+                    onClick={() =>
+                      setDays((prev) =>
+                        prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort(),
+                      )
+                    }
+                    className={cn(
+                      "h-10 flex-1 rounded-xl border text-[12px] font-bold transition-all",
+                      on
+                        ? "border-transparent text-white"
+                        : "border-line text-ink-faint hover:border-iris/50 hover:text-ink",
+                    )}
+                    style={on ? { background: color } : undefined}
+                    aria-pressed={on}
+                  >
+                    {letter}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-[11px] text-ink-faint">
+              Só esses dias ficam liberados para marcação. Vazio = qualquer dia.
+            </p>
+          </Field>
+
+          <Field label="Meta relacionada" optional>
               <Select value={goalId} onChange={(e) => setGoalId(e.target.value)}>
                 <option value="">Nenhuma</option>
                 {state.goals.map((g) => (
